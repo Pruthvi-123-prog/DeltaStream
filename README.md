@@ -1,17 +1,7 @@
-<style>
-  body {
-    background-color: #000000 !important;
-    color: #FFFFFF !important;
-  }
-  h1, h2, h3, h4, h5, h6, p, li, td, tr, th {
-    color: #FFFFFF !important;
-  }
-</style>
-
 # DeltaStream
 
 <p align="center">
-  <img src="./logo.png" alt="DeltaStream Logo">
+  <img src="./logo.png" alt="DeltaStream Logo" width="200">
 </p>
 
 **Run 30B+ parameter models on consumer hardware.**
