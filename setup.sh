@@ -24,9 +24,25 @@ echo "[*] Activating virtual environment..."
 source .venv/bin/activate
 
 echo "[*] Installing dependencies (this may take a minute)..."
-pip install --upgrade pip -q
-pip install -r requirements.txt -q
-pip install -e . -q
+(
+    pip install --upgrade pip -q
+    pip install -r requirements.txt -q
+    pip install -e . -q
+) &
+PID=$!
+
+while kill -0 $PID 2>/dev/null; do
+    bar=""
+    for i in {1..40}; do
+        if ! kill -0 $PID 2>/dev/null; then break; fi
+        spaces=$((40 - i))
+        printf "\r[%s>%*s] Working..." "$bar" "$spaces" ""
+        bar="${bar}="
+        sleep 0.2
+    done
+done
+printf "\r[========================================] Done!       \n"
+wait $PID
 
 # Run health checks using Python
 echo ""
