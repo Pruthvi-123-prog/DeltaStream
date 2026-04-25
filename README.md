@@ -50,6 +50,19 @@ graph TD
 
 *Note: DeltaStream achieves these speeds using only a fraction of the RAM required by vanilla `transformers`.*
 
+### Raw I/O Benchmark Proof (Bare Metal io_uring vs Standard)
+The following is the direct output from our raw disk throughput benchmark (`benchmark.py`) running on bare metal Linux, proving the `io_uring` architectural advantage:
+```text
+────────────────────────────────────────────────────────────
+ℹ  TEST 2: Synthetic large layer (1536 MB)
+────────────────────────────────────────────────────────────
+ℹ  Standard (open+read):
+ℹ    Standard Median (cold): 265.1 MB/s  (5/5 valid)
+ℹ  io_uring (batched SQE):
+ℹ    io_uring Median (cold): 350.9 MB/s  (5/5 valid)
+ℹ    Speedup: 1.32x
+```
+
 ## Quickstart
 
 ```bash
