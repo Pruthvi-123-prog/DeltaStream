@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deltastream-x"
+version = "1.0.0"
+description = "Zero-accuracy-loss LLM inference accelerator via delta-layer compression — built on DeltaStream"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "DeltaStream" }]
+
+dependencies = [
+    "torch>=2.0.0",
+    "safetensors>=0.4.0",
+    "transformers>=4.38.0",
+    "huggingface_hub>=0.21.0",
+    "numpy>=1.24.0",
+    "tqdm>=4.66.0",
+    "rich>=13.0.0",
+    "zstandard>=0.22.0",
+    "accelerate>=0.27.0",
+]
+
+[project.optional-dependencies]
+deltastream = ["deltastream>=0.1.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "black",
+    "ruff",
+]
+
+[project.scripts]
+deltastream-x = "deltastream.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["deltastream*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

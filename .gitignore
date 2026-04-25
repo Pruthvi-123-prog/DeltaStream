@@ -1,0 +1,10 @@
+*.safetensors
+__pycache__/
+*.pyc
+*.egg-info/
+delta_gpt2/
+delta_synthetic*/
+.venv/
+*.out
+out*.txt
+.cache/
