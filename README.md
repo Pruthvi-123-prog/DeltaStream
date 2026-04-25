@@ -50,42 +50,16 @@ graph TD
 
 *Note: DeltaStream achieves these speeds using only a fraction of the RAM required by vanilla `transformers`.*
 
-## Installation
+## Quickstart
 
 ```bash
 git clone https://github.com/Pruthvi-123-prog/DeltaStream.git
 cd DeltaStream
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
+bash setup.sh
+python run.py --model google/gemma-2-2b-it
 ```
 
-## Quickstart
-
-**1. Convert a model to DeltaStream format (with compression)**
-```bash
-deltastream convert --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 --output ./delta_tinyllama --compress
-```
-
-**2. Verify conversion integrity**
-```bash
-deltastream verify --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 --delta ./delta_tinyllama
-```
-
-**3. Run Streaming Inference**
-```python
-from deltastream.runtime import DeltaStreamRuntime
-
-runtime = DeltaStreamRuntime(
-    model_id="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    delta_dir="./delta_tinyllama",
-    compress=True,
-    max_ram_gb=4.0  # Limit RAM cache to 4GB
-)
-
-output_ids = runtime.generate("The future of AI is", max_new_tokens=50)
-print(runtime.tokenizer.decode(output_ids[0]))
-```
+*That's it. The script detects your OS, builds the virtual environment, tests your GPU, handles delta conversion automatically, and launches an interactive streaming chat interface.*
 
 ## Detailed Usage Guide
 
