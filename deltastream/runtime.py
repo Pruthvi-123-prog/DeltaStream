@@ -28,7 +28,7 @@ from deltastream.core.manifest import read_manifest
 from deltastream.utils.logging import log_info, log_warning
 
 
-class DeltaStreamXRuntime:
+class DeltaStreamRuntime:
     """
     Streaming inference runtime for delta-compressed transformer models.
 

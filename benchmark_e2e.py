@@ -26,7 +26,7 @@ except ImportError:
     print("👉 Run: source .venv/bin/activate")
     exit(1)
 
-from deltastream.runtime import DeltaStreamXRuntime
+from deltastream.runtime import DeltaStreamRuntime
 from deltastream.utils.logging import log_info, log_warning
 
 # ─── Prompts ─────────────────────────────────────────────────────────────────
@@ -125,9 +125,9 @@ def run_deltastreamx(
     max_ram_gb: float = 10.0,
 ):
     """Run DeltaStream streaming runtime."""
-    log_info(f"Initializing DeltaStreamXRuntime (compress={compress})...")
+    log_info(f"Initializing DeltaStreamRuntime (compress={compress})...")
     t0 = time.perf_counter()
-    runtime = DeltaStreamXRuntime(
+    runtime = DeltaStreamRuntime(
         model_id=model_id,
         delta_dir=delta_dir,
         max_ram_gb=max_ram_gb,

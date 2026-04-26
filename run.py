@@ -73,9 +73,9 @@ def check_disk_space(model_id):
         print(f"[*] Fetching model info for {model_id}...")
         info = model_info(model_id)
         # Sum safetensors files
-        size_bytes = sum(f.size for f in info.siblings if f.rfilename.endswith(".safetensors") or f.rfilename.endswith(".bin"))
+        size_bytes = sum((f.size or 0) for f in info.siblings if f.rfilename.endswith(".safetensors") or f.rfilename.endswith(".bin"))
         if size_bytes == 0:
-            size_bytes = sum(getattr(f, 'size', 0) or 0 for f in info.siblings)
+            size_bytes = sum((getattr(f, 'size', 0) or 0) for f in info.siblings)
             
         if size_bytes > 0:
             free_bytes = shutil.disk_usage(".").free

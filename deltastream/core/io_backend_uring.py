@@ -98,6 +98,10 @@ class IOBackendFactory:
             return StandardIOBackend(base_model_path, delta_model_path, device)
 
         log_info(f"Using IOUringBackend (mode: {env})")
+        if env == "baremetal":
+            # O_DIRECT stubbed — fall back to io_uring WITHOUT O_DIRECT
+            # same as wsl2 mode for now until bare metal O_DIRECT implemented
+            return IOUringBackend(base_model_path, delta_model_path, "wsl2", device)
         return IOUringBackend(base_model_path, delta_model_path, env, device)
 
 
@@ -117,7 +121,8 @@ class IOUringBackend(IOBackend):
         
         if self.mode == "baremetal":
             # TODO: Implement O_DIRECT + page-aligned mmap + torch.frombuffer zero-copy
-            raise NotImplementedError("Bare metal O_DIRECT mode is stubbed for Phase 3 future work.")
+            log_warning("Bare metal O_DIRECT mode is stubbed for Phase 3 future work. Falling back to standard io_uring.")
+            self.mode = "wsl2"
 
     def _parse_safetensors_metadata(self, filepath: str):
         """Reads safetensors header to find byte offsets for each tensor."""
