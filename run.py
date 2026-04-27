@@ -129,7 +129,7 @@ def run_chat(model_id, delta_dir, ram_gb, use_cpu):
     print(" Commands: /stats (performance), /clear (reset context), /exit")
     print("="*50 + "\n")
     
-    messages = []
+    messages = [{"role": "system", "content": "You are a helpful, friendly assistant. Answer clearly and concisely."}]
     last_gen_tokens = 0
     last_time = 0
     
@@ -142,7 +142,7 @@ def run_chat(model_id, delta_dir, ram_gb, use_cpu):
                 print("Exiting...")
                 break
             if user_input.strip() == "/clear":
-                messages = []
+                messages = [{"role": "system", "content": "You are a helpful, friendly assistant. Answer clearly and concisely."}]
                 print("Context cleared.")
                 continue
             if user_input.strip() == "/stats":
@@ -162,9 +162,6 @@ def run_chat(model_id, delta_dir, ram_gb, use_cpu):
             else:
                 input_text = "\n".join([f"{m['role']}: {m['content']}" for m in messages]) + "\nAssistant: "
                 
-            input_ids = tokenizer(input_text, return_tensors="pt")["input_ids"]
-            input_len = input_ids.shape[1]
-            
             print("Assistant > ", end="", flush=True)
             
             import traceback
