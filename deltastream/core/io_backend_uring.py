@@ -66,6 +66,8 @@ class IOBackendFactory:
 
     @staticmethod
     def detect_environment() -> str:
+        if os.name == "nt":
+            return "windows"
         if os.name != "posix":
             return "unsupported"
         try:
@@ -81,6 +83,10 @@ class IOBackendFactory:
     def get_backend(base_model_path: str, delta_model_path: str, device: str = "cpu") -> IOBackend:
         env = IOBackendFactory.detect_environment()
 
+        if env == "windows":
+            log_info("Windows detected — using StandardIOBackend (io_uring requires Linux)")
+            return StandardIOBackend(base_model_path, delta_model_path, device)
+            
         if env not in ("wsl2", "baremetal"):
             log_info(f"Using StandardIOBackend (unsupported environment: {env})")
             return StandardIOBackend(base_model_path, delta_model_path, device)

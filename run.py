@@ -171,6 +171,10 @@ def run_chat(model_id, delta_dir, ram_gb, use_cpu):
             out_ids = runtime.generate(input_ids, max_new_tokens=512)
             end_t = time.time()
             
+            if out_ids is None:
+                print("\n❌ Error: generate() returned None. Check your hardware or model support.")
+                continue
+            
             gen_ids = out_ids[0][input_len:]
             response = tokenizer.decode(gen_ids, skip_special_tokens=True)
             print(response + "\n")

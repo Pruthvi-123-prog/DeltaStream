@@ -57,7 +57,16 @@ class DeltaStreamRuntime:
     ):
         self.model_id = model_id
         self.delta_dir = Path(delta_dir)
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        if device:
+            self.device = device
+        elif torch.cuda.is_available():
+            self.device = "cuda"
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            self.device = "mps"
+        else:
+            self.device = "cpu"
+            log_warning("No hardware acceleration (CUDA/MPS) found. Running on CPU (will be slow).")
+            
         self.max_ram_gb = max_ram_gb
 
         # ── 1. Auto-convert if delta_dir missing ────────────────────────────
