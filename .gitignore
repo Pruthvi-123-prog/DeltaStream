@@ -2,8 +2,7 @@
 __pycache__/
 *.pyc
 *.egg-info/
-delta_gpt2/
-delta_synthetic*/
+delta_*/
 .venv/
 *.out
 out*.txt
