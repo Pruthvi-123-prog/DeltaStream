@@ -107,6 +107,10 @@ class DeltaStreamRuntime:
         log_info("Pre-loading base layer into cache...")
         self.cache.get_layer(0)
 
+        # Load non-layer weights (embeddings, lm_head, norms) eagerly at init
+        # These must be on device before any forward pass
+        self._load_non_layer_weights()
+
     # ── Private helpers ────────────────────────────────────────────────────────
 
     def _run_converter(self, compress: bool = False) -> None:
@@ -183,7 +187,7 @@ class DeltaStreamRuntime:
             torch.cuda.empty_cache()
 
     def _load_non_layer_weights(self) -> None:
-        """Load embeddings, lm_head, norms onto device."""
+        """Load embeddings, lm_head, norms onto device. Called once at init."""
         from safetensors.torch import load_file as st_load
         non_layer_path = self.delta_dir / "base" / "non_layer.safetensors"
         if not non_layer_path.exists():
@@ -191,19 +195,34 @@ class DeltaStreamRuntime:
             return
         weights = st_load(str(non_layer_path), device=self.device)
         
-        skeleton_names = [n for n, _ in self.model.named_parameters()]
+        skeleton_names = list(n for n, _ in self.model.named_parameters())
+        loaded, skipped = 0, []
         
         for name, tensor in weights.items():
-            target_name = name
-            for skel_name in skeleton_names:
-                if skel_name == name or skel_name.endswith("." + name):
-                    target_name = skel_name
-                    break
-                    
+            target_name = None
+            # Exact match first
+            if name in skeleton_names:
+                target_name = name
+            else:
+                # Suffix match: e.g. 'embed_tokens.weight' matches 'model.embed_tokens.weight'
+                for skel_name in skeleton_names:
+                    if skel_name == name or skel_name.endswith("." + name):
+                        target_name = skel_name
+                        break
+            
+            if target_name is None:
+                skipped.append(name)
+                continue
+                
             try:
                 set_module_tensor_to_device(self.model, target_name, device=self.device, value=tensor)
-            except Exception:
-                pass  # ignore keys that don't map to the model (e.g. tied weights)
+                loaded += 1
+            except Exception as e:
+                skipped.append(f"{name} ({e})")
+        
+        log_info(f"Non-layer weights: {loaded} loaded, {len(skipped)} skipped.")
+        if skipped:
+            log_warning(f"Skipped non-layer keys: {skipped[:5]}{'...' if len(skipped) > 5 else ''}")
 
     # ── Public generate API ────────────────────────────────────────────────────
 
@@ -229,8 +248,7 @@ class DeltaStreamRuntime:
         -------
         generated_ids : (1, seq_len + max_new_tokens) tensor on CPU
         """
-        self._load_non_layer_weights()
-
+        # Non-layer weights are loaded once at init — no need to reload here.
         generated = input_ids.clone()
         past_key_values = None
 
