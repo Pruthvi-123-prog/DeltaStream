@@ -11,6 +11,9 @@ if os.name == "posix":
     except OSError as e:
         log_warning(f"Failed to load libc.so.6: {e}. Memory pinning disabled.")
 
+_mlock_disabled = False
+_mlock_warned = False
+
 def pin_tensor(tensor: torch.Tensor) -> bool:
     """
     Locks the memory pages containing the tensor into RAM using Linux mlock.
@@ -19,7 +22,9 @@ def pin_tensor(tensor: torch.Tensor) -> bool:
     Returns:
         bool: True if successfully pinned, False otherwise.
     """
-    if _libc is None:
+    global _mlock_disabled, _mlock_warned
+    
+    if _libc is None or _mlock_disabled:
         return False
         
     addr = tensor.data_ptr()
@@ -30,11 +35,10 @@ def pin_tensor(tensor: torch.Tensor) -> bool:
 
     res = _libc.mlock(ctypes.c_void_p(addr), ctypes.c_size_t(size))
     if res != 0:
-        errno = ctypes.get_errno()
-        # Warn but do not crash. 
-        # ENOMEM (12) usually means ulimit -l is exceeded.
-        # EPERM (1) means lacking CAP_IPC_LOCK.
-        log_warning(f"mlock failed with errno {errno}. Tensor not pinned. Check ulimit -l or permissions.")
+        _mlock_disabled = True
+        if not _mlock_warned:
+            log_warning("⚠ mlock unavailable (limited permissions) — running without RAM pinning. Performance may vary.")
+            _mlock_warned = True
         return False
         
     return True
@@ -47,7 +51,7 @@ def unpin_tensor(tensor: torch.Tensor) -> bool:
     Returns:
         bool: True if successfully unpinned, False otherwise.
     """
-    if _libc is None:
+    if _libc is None or _mlock_disabled:
         return False
         
     addr = tensor.data_ptr()
@@ -58,8 +62,7 @@ def unpin_tensor(tensor: torch.Tensor) -> bool:
 
     res = _libc.munlock(ctypes.c_void_p(addr), ctypes.c_size_t(size))
     if res != 0:
-        errno = ctypes.get_errno()
-        log_warning(f"munlock failed with errno {errno}.")
+        # Ignore munlock errors if we had issues.
         return False
         
     return True
