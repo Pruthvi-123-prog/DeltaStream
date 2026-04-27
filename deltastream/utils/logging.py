@@ -34,7 +34,20 @@ _THEME = Theme(
     }
 )
 
-console = Console(theme=_THEME)
+import os
+import sys
+
+# On Windows, the default cp1252 codec cannot encode emoji (⚠, ℹ, ✔ etc.).
+# Force UTF-8 output to prevent UnicodeEncodeError on every log call.
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except AttributeError:
+        pass  # Python < 3.7 fallback
+
+console = Console(theme=_THEME, highlight=False)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

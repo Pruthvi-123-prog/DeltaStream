@@ -166,13 +166,13 @@ def run_chat(model_id, delta_dir, ram_gb, use_cpu):
             
             import traceback
             try:
-                response, stats = runtime.generate(input_text, max_new_tokens=512)
+                response, stats = runtime.generate(input_text, max_new_tokens=512, stream=True)
             except Exception as e:
                 traceback.print_exc()
                 print(f"\n❌ Error during generation: {e}")
                 continue
                 
-            print(response + "\n")
+            print("\n")
             
             messages.append({"role": "assistant", "content": response.strip()})
             

@@ -232,6 +232,7 @@ class DeltaStreamRuntime:
         max_new_tokens: int = 50,
         temperature: float = 1.0,
         do_sample: bool = False,
+        callback = None,
         **kwargs,
     ) -> torch.Tensor:
         """
@@ -272,6 +273,9 @@ class DeltaStreamRuntime:
                     next_token = next_logits.argmax(dim=-1, keepdim=True)
 
                 generated = torch.cat([generated, next_token.cpu()], dim=1)
+
+                if callback is not None:
+                    callback(generated)
 
                 # EOS check
                 if next_token.item() == self.tokenizer.eos_token_id:
@@ -378,7 +382,7 @@ class DeltaStreamRuntime:
         past_kv_out = tuple(new_past_kv) if any(x is not None for x in new_past_kv) else None
         return logits, past_kv_out
 
-    def generate(self, prompt: str, max_new_tokens: int = 50, **kwargs) -> tuple[str, dict]:
+    def generate(self, prompt: str, max_new_tokens: int = 50, stream: bool = False, **kwargs) -> tuple[str, dict]:
         """
         Generate text from a string prompt.
         Returns: (generated_text, stats_dict)
@@ -389,8 +393,23 @@ class DeltaStreamRuntime:
             input_ids = inputs["input_ids"]
             input_len = input_ids.shape[1]
             
+            last_text = ""
+            def stream_cb(gen_tensor):
+                nonlocal last_text
+                current_ids = gen_tensor[0][input_len:]
+                current_text = self.tokenizer.decode(current_ids, skip_special_tokens=True)
+                if len(current_text) > len(last_text):
+                    diff = current_text[len(last_text):]
+                    print(diff, end="", flush=True)
+                    last_text = current_text
+            
             start_t = time.time()
-            output_ids = self._generate_ids(input_ids, max_new_tokens=max_new_tokens, **kwargs)
+            output_ids = self._generate_ids(
+                input_ids, 
+                max_new_tokens=max_new_tokens, 
+                callback=stream_cb if stream else None,
+                **kwargs
+            )
             end_t = time.time()
             
             if output_ids is None:
