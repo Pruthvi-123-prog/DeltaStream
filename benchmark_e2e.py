@@ -142,7 +142,7 @@ def run_deltastreamx(
         _reset_vram()
 
         t_start = time.perf_counter()
-        out_ids = runtime.generate(inputs["input_ids"], max_new_tokens=max_new_tokens)
+        out_ids = runtime._generate_ids(inputs["input_ids"], max_new_tokens=max_new_tokens)
         t_end = time.perf_counter()
 
         elapsed = t_end - t_start

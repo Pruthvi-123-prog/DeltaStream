@@ -167,22 +167,20 @@ def run_chat(model_id, delta_dir, ram_gb, use_cpu):
             
             print("Assistant > ", end="", flush=True)
             
-            start_t = time.time()
-            out_ids = runtime.generate(input_ids, max_new_tokens=512)
-            end_t = time.time()
-            
-            if out_ids is None:
-                print("\n❌ Error: generate() returned None. Check your hardware or model support.")
+            import traceback
+            try:
+                response, stats = runtime.generate(input_text, max_new_tokens=512)
+            except Exception as e:
+                traceback.print_exc()
+                print(f"\n❌ Error during generation: {e}")
                 continue
-            
-            gen_ids = out_ids[0][input_len:]
-            response = tokenizer.decode(gen_ids, skip_special_tokens=True)
+                
             print(response + "\n")
             
             messages.append({"role": "assistant", "content": response.strip()})
             
-            last_gen_tokens = len(gen_ids)
-            last_time = end_t - start_t
+            last_gen_tokens = stats.get("generated_tokens", 0)
+            last_time = stats.get("elapsed", 0.0)
             
         except KeyboardInterrupt:
             print("\nExiting...")

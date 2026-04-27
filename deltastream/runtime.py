@@ -207,7 +207,7 @@ class DeltaStreamRuntime:
 
     # ── Public generate API ────────────────────────────────────────────────────
 
-    def generate(
+    def _generate_ids(
         self,
         input_ids: torch.Tensor,
         max_new_tokens: int = 50,
@@ -271,12 +271,28 @@ class DeltaStreamRuntime:
         embedding = self.model.get_input_embeddings()
         hidden = embedding(input_ids)
 
-        attention_mask = None
-        position_ids = torch.arange(
-            0 if past_key_values is None else past_key_values[0][0].shape[2],
-            hidden.shape[1] + (0 if past_key_values is None else past_key_values[0][0].shape[2]),
-            device=self.device,
-        ).unsqueeze(0)
+        past_len = 0
+        if past_key_values is not None:
+            # past_key_values is a tuple of (key, value) per layer
+            try:
+                past_len = past_key_values[0][0].shape[2]
+            except (IndexError, TypeError, AttributeError):
+                past_len = 0
+
+        seq_len = hidden.shape[1]
+        position_ids = torch.arange(past_len, past_len + seq_len, device=self.device).unsqueeze(0)
+
+        # Compute rotary position embeddings once for all layers (modern transformers >=4.45)
+        position_embeddings = None
+        rotary_emb = (
+            getattr(self.model, "rotary_emb", None)
+            or getattr(getattr(self.model, "model", None), "rotary_emb", None)
+        )
+        if rotary_emb is not None:
+            try:
+                position_embeddings = rotary_emb(hidden, position_ids)
+            except Exception:
+                position_embeddings = None
 
         new_past_kv = []
 
@@ -287,22 +303,34 @@ class DeltaStreamRuntime:
             block = self._layer_module[layer_idx]
             layer_past = past_key_values[layer_idx] if past_key_values is not None else None
 
-            try:
-                out = block(
-                    hidden,
-                    attention_mask=attention_mask,
-                    position_ids=position_ids,
-                    past_key_value=layer_past,
-                    use_cache=True,
-                )
-            except TypeError:
-                # Some architectures don't accept position_ids
-                out = block(
-                    hidden,
-                    attention_mask=attention_mask,
-                    past_key_value=layer_past,
-                    use_cache=True,
-                )
+            # Build kwargs progressively — try most-specific first
+            out = None
+            call_kwargs = dict(
+                attention_mask=None,
+                position_ids=position_ids,
+                past_key_value=layer_past,
+                use_cache=True,
+            )
+            if position_embeddings is not None:
+                call_kwargs["position_embeddings"] = position_embeddings
+
+            for attempt in range(3):
+                try:
+                    out = block(hidden, **call_kwargs)
+                    break
+                except TypeError as te:
+                    msg = str(te)
+                    if "position_embeddings" in msg and "position_embeddings" in call_kwargs:
+                        call_kwargs.pop("position_embeddings")
+                    elif "position_ids" in msg and "position_ids" in call_kwargs:
+                        call_kwargs.pop("position_ids")
+                    elif "past_key_value" in msg and "past_key_value" in call_kwargs:
+                        call_kwargs.pop("past_key_value")
+                    else:
+                        raise
+
+            if out is None:
+                raise RuntimeError(f"Layer {layer_idx} forward pass failed after all fallback attempts")
 
             if isinstance(out, tuple):
                 hidden = out[0]
@@ -332,11 +360,47 @@ class DeltaStreamRuntime:
         past_kv_out = tuple(new_past_kv) if any(x is not None for x in new_past_kv) else None
         return logits, past_kv_out
 
+    def generate(self, prompt: str, max_new_tokens: int = 50, **kwargs) -> tuple[str, dict]:
+        """
+        Generate text from a string prompt.
+        Returns: (generated_text, stats_dict)
+        """
+        import time
+        try:
+            inputs = self.tokenizer(prompt, return_tensors="pt")
+            input_ids = inputs["input_ids"]
+            input_len = input_ids.shape[1]
+            
+            start_t = time.time()
+            output_ids = self._generate_ids(input_ids, max_new_tokens=max_new_tokens, **kwargs)
+            end_t = time.time()
+            
+            if output_ids is None:
+                raise ValueError("_generate_ids returned None")
+                
+            gen_ids = output_ids[0][input_len:]
+            response = self.tokenizer.decode(gen_ids, skip_special_tokens=True)
+            if response is None:
+                response = ""
+                
+            elapsed = end_t - start_t
+            tokens_per_sec = len(gen_ids) / elapsed if elapsed > 0 else 0
+            stats = {
+                "tokens_per_sec": tokens_per_sec,
+                "elapsed": elapsed,
+                "generated_tokens": len(gen_ids)
+            }
+            return response, stats
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return f"Generation error: {e}", {"tokens_per_sec": 0}
+
     def generate_text(self, prompt: str, max_new_tokens: int = 50, **kwargs) -> str:
         """Convenience wrapper: prompt str → generated str."""
-        inputs = self.tokenizer(prompt, return_tensors="pt")
-        output_ids = self.generate(inputs["input_ids"], max_new_tokens=max_new_tokens, **kwargs)
-        return self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        res, _ = self.generate(prompt, max_new_tokens=max_new_tokens, **kwargs)
+        return res
 
     def cache_stats(self) -> dict:
         return self.cache.get_metrics()
