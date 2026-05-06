@@ -230,6 +230,7 @@ class DeltaStreamRuntime:
         self,
         input_ids: torch.Tensor,
         max_new_tokens: int = 50,
+        min_new_tokens: int = 20,
         temperature: float = 1.0,
         do_sample: bool = False,
         callback = None,
@@ -279,7 +280,8 @@ class DeltaStreamRuntime:
 
                 # EOS check
                 if next_token.item() == self.tokenizer.eos_token_id:
-                    break
+                    if step >= min_new_tokens:
+                        break
 
         return generated
 
@@ -382,7 +384,7 @@ class DeltaStreamRuntime:
         past_kv_out = tuple(new_past_kv) if any(x is not None for x in new_past_kv) else None
         return logits, past_kv_out
 
-    def generate(self, prompt: str, max_new_tokens: int = 50, stream: bool = False, **kwargs) -> tuple[str, dict]:
+    def generate(self, prompt: str, max_new_tokens: int = 50, min_new_tokens: int = 20, stream: bool = False, **kwargs) -> tuple[str, dict]:
         """
         Generate text from a string prompt.
         Returns: (generated_text, stats_dict)
@@ -407,6 +409,7 @@ class DeltaStreamRuntime:
             output_ids = self._generate_ids(
                 input_ids, 
                 max_new_tokens=max_new_tokens, 
+                min_new_tokens=min_new_tokens,
                 callback=stream_cb if stream else None,
                 **kwargs
             )

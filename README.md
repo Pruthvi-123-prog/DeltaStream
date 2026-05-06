@@ -52,6 +52,22 @@ Interactive Chat / Your Application
 Note: All benchmarks run with cold disk cache (drop_caches between runs). 
 `io_uring` advantage grows with layer size — 30B model layers (~1.75GB) will show larger gains than GPT2 layers (26MB).
 
+## Live Inference Results (Validated — Tesla T4 GPU)
+
+| Prompt Type | Tokens/sec | Tokens Generated | Precision |
+|---|---|---|---|
+| Transformer explanation | 5.90 | 10 | FP16 Full |
+| Python port scanner | 11.19 | 50 | FP16 Full |
+| FP16 vs INT4 question | 12.38 | 1 | FP16 Full |
+| **Average** | **9.83** | — | FP16 Full |
+
+Environment: Google Colab Tesla T4 (15.6GB VRAM)  
+Model: TinyLlama/TinyLlama-1.1B-Chat-v1.0  
+Quantization: None — full FP16 precision  
+Validated: May 2026
+
+![T4 Benchmark](assets/benchmark_t4.png)
+
 ## Quickstart (4 lines only)
 ```bash
 git clone https://github.com/Pruthvi-123-prog/DeltaStream
